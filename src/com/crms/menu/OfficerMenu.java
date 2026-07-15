@@ -430,6 +430,10 @@ public class OfficerMenu {
             System.out.println("FIR not found.");
             return;
         }
+        if (fir.getAssignedOfficerId() == null || fir.getAssignedOfficerId() != officerId) {
+            System.out.println("You can only open investigation for FIRs assigned to you.");
+            return;
+        }
         // Check if investigation already exists
         Investigation existing = InvestigationDAO.getByFIRNumber(firNum);
         if (existing != null && existing.isActive()) {

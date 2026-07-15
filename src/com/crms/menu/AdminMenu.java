@@ -35,7 +35,6 @@ public class AdminMenu {
             System.out.println("11. Add Police Station");          // NEW
             System.out.println("12. Assign Officer to FIR");       // NEW
             System.out.println("0. Logout");
-            System.out.print("Enter choice: ");
             choice = InputHelper.readInt(scanner, "Enter choice: ");
 
             switch (choice) {
@@ -59,9 +58,17 @@ public class AdminMenu {
 
     private static void addUser() {
         System.out.print("Username: ");
-        String username = scanner.nextLine();
+        String username = scanner.nextLine().trim();
+        if (username.isEmpty()) {
+            System.out.println("Username cannot be empty.");
+            return;
+        }
         System.out.print("Password: ");
         String password = scanner.nextLine();
+        if (password.trim().isEmpty()) {
+            System.out.println("Password cannot be empty.");
+            return;
+        }
         System.out.print("Role (ADMIN/OFFICER/STAFF): ");
         String role = scanner.nextLine().toUpperCase();
         if (!role.matches("ADMIN|OFFICER|STAFF")) {
@@ -69,7 +76,11 @@ public class AdminMenu {
             return;
         }
         System.out.print("Full Name: ");
-        String fullName = scanner.nextLine();
+        String fullName = scanner.nextLine().trim();
+        if (fullName.isEmpty()) {
+            System.out.println("Full name cannot be empty.");
+            return;
+        }
         List<PoliceStation> stations = PoliceStationDAO.getAllActive();
         if (stations.isEmpty()) {
             System.out.println("No active police stations. Please add a station first.");
@@ -252,11 +263,23 @@ public class AdminMenu {
     // NEW: Add Police Station
     private static void addPoliceStation() {
         System.out.print("Station Name: ");
-        String name = scanner.nextLine();
+        String name = scanner.nextLine().trim();
+        if (name.isEmpty()) {
+            System.out.println("Station name cannot be empty.");
+            return;
+        }
         System.out.print("Address: ");
-        String addr = scanner.nextLine();
+        String addr = scanner.nextLine().trim();
+        if (addr.isEmpty()) {
+            System.out.println("Address cannot be empty.");
+            return;
+        }
         System.out.print("Phone: ");
-        String phone = scanner.nextLine();
+        String phone = scanner.nextLine().trim();
+        if (!InputValidator.isValidPhone(phone)) {
+            System.out.println("Invalid phone number.");
+            return;
+        }
         PoliceStation station = new PoliceStation();
         station.setStationName(name);
         station.setAddress(addr);

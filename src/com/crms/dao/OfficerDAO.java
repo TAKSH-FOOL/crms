@@ -110,8 +110,11 @@ public class OfficerDAO {
 
     // No soft delete – deactivate user instead
     public static boolean delete(int officerId) {
-        // Not implemented – see comment
-        return false;
+        Officer officer = getById(officerId);
+        if (officer == null) {
+            return false;
+        }
+        return UserDAO.delete(officer.getUserId());
     }
 
     private static Officer mapOfficer(ResultSet rs) throws SQLException {

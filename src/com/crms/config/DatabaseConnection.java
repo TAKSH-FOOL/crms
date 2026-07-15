@@ -3,9 +3,9 @@ package com.crms.config;
 import java.sql.*;
 
 public class DatabaseConnection {
-    private static final String URL = "jdbc:mysql://localhost:3306/crms_db";
-    private static final String USERNAME = "root";
-    private static final String PASSWORD = ""; // change to your MySQL password
+    private static final String URL = getEnvOrDefault("DB_URL", "jdbc:mysql://localhost:3306/crms_db");
+    private static final String USERNAME = getEnvOrDefault("DB_USER", "root");
+    private static final String PASSWORD = getEnvOrDefault("DB_PASS", ""); // keep empty default for local setup
 
     static {
         try {
@@ -18,6 +18,11 @@ public class DatabaseConnection {
 
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USERNAME, PASSWORD);
+    }
+
+    private static String getEnvOrDefault(String key, String defaultValue) {
+        String value = System.getenv(key);
+        return (value == null || value.trim().isEmpty()) ? defaultValue : value;
     }
 
     public static void closeConnection(Connection conn) {

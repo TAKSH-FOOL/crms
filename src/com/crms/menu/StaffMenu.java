@@ -57,7 +57,12 @@ public class StaffMenu {
         System.out.print("Complainant Name: ");
         fir.setComplainantName(scanner.nextLine());
         System.out.print("Complainant Contact: ");
-        fir.setComplainantContact(scanner.nextLine());
+        String contact = scanner.nextLine();
+        if (!InputValidator.isValidPhone(contact)) {
+            System.out.println("Invalid complainant contact.");
+            return;
+        }
+        fir.setComplainantContact(contact);
         System.out.print("Incident Location: ");
         fir.setIncidentLocation(scanner.nextLine());
         System.out.print("Incident Date (YYYY-MM-DD HH:MM:SS): ");
@@ -92,12 +97,22 @@ public class StaffMenu {
             System.out.println("FIR not found.");
             return;
         }
+        if (fir.getStationId() != Session.getCurrentUser().getStationId()) {
+            System.out.println("You can only update FIRs from your station.");
+            return;
+        }
         System.out.print("New Complainant Name (leave blank to keep): ");
         String name = scanner.nextLine();
         if (!name.isEmpty()) fir.setComplainantName(name);
         System.out.print("New Complainant Contact (leave blank): ");
         String contact = scanner.nextLine();
-        if (!contact.isEmpty()) fir.setComplainantContact(contact);
+        if (!contact.isEmpty()) {
+            if (!InputValidator.isValidPhone(contact)) {
+                System.out.println("Invalid complainant contact.");
+                return;
+            }
+            fir.setComplainantContact(contact);
+        }
         System.out.print("New Incident Location (leave blank): ");
         String loc = scanner.nextLine();
         if (!loc.isEmpty()) fir.setIncidentLocation(loc);
@@ -120,6 +135,10 @@ public class StaffMenu {
         FIR fir = FIRDAO.getByFIRNumber(firNum);
         if (fir == null) {
             System.out.println("FIR not found.");
+            return;
+        }
+        if (fir.getStationId() != Session.getCurrentUser().getStationId()) {
+            System.out.println("You can only view FIRs from your station.");
             return;
         }
         System.out.println(fir);
@@ -146,7 +165,15 @@ public class StaffMenu {
         String from = scanner.nextLine();
         System.out.print("To date (YYYY-MM-DD, leave blank): ");
         String to = scanner.nextLine();
-        List<FIR> list = FIRDAO.search(status, complainant, from, to);
+        if (!from.isEmpty() && !InputValidator.isValidDate(from)) {
+            System.out.println("Invalid from date.");
+            return;
+        }
+        if (!to.isEmpty() && !InputValidator.isValidDate(to)) {
+            System.out.println("Invalid to date.");
+            return;
+        }
+        List<FIR> list = FIRDAO.searchByStation(Session.getCurrentUser().getStationId(), status, complainant, from, to);
         if (list.isEmpty()) {
             System.out.println("No FIRs found.");
         } else {
@@ -157,13 +184,24 @@ public class StaffMenu {
     private static void addVictim() {
         Victim victim = new Victim();
         System.out.print("FIR Number: ");
-        victim.setFirNumber(scanner.nextLine());
+        String firNumber = scanner.nextLine();
+        FIR fir = FIRDAO.getByFIRNumber(firNumber);
+        if (fir == null || !fir.isActive() || fir.getStationId() != Session.getCurrentUser().getStationId()) {
+            System.out.println("Invalid FIR for your station.");
+            return;
+        }
+        victim.setFirNumber(firNumber);
         System.out.print("First Name: ");
         victim.setFirstName(scanner.nextLine());
         System.out.print("Last Name: ");
         victim.setLastName(scanner.nextLine());
         System.out.print("Contact: ");
-        victim.setContact(scanner.nextLine());
+        String contact = scanner.nextLine();
+        if (!InputValidator.isValidPhone(contact)) {
+            System.out.println("Invalid contact.");
+            return;
+        }
+        victim.setContact(contact);
         System.out.print("Address: ");
         victim.setAddress(scanner.nextLine());
         if (VictimDAO.create(victim)) {
@@ -176,13 +214,24 @@ public class StaffMenu {
     private static void addWitness() {
         Witness witness = new Witness();
         System.out.print("FIR Number: ");
-        witness.setFirNumber(scanner.nextLine());
+        String firNumber = scanner.nextLine();
+        FIR fir = FIRDAO.getByFIRNumber(firNumber);
+        if (fir == null || !fir.isActive() || fir.getStationId() != Session.getCurrentUser().getStationId()) {
+            System.out.println("Invalid FIR for your station.");
+            return;
+        }
+        witness.setFirNumber(firNumber);
         System.out.print("First Name: ");
         witness.setFirstName(scanner.nextLine());
         System.out.print("Last Name: ");
         witness.setLastName(scanner.nextLine());
         System.out.print("Contact: ");
-        witness.setContact(scanner.nextLine());
+        String contact = scanner.nextLine();
+        if (!InputValidator.isValidPhone(contact)) {
+            System.out.println("Invalid contact.");
+            return;
+        }
+        witness.setContact(contact);
         System.out.print("Statement: ");
         witness.setStatement(scanner.nextLine());
         if (WitnessDAO.create(witness)) {

@@ -6,6 +6,7 @@ import com.crms.util.AuditLogger;
 import com.crms.Session;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -92,9 +93,17 @@ public class FIRDAO {
     }
 
     public static List<FIR> search(String status, String complainant, String fromDate, String toDate) {
+        return searchByStation(null, status, complainant, fromDate, toDate);
+    }
+
+    public static List<FIR> searchByStation(Integer stationId, String status, String complainant, String fromDate, String toDate) {
         List<FIR> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder("SELECT * FROM fir WHERE is_active = true");
         List<Object> params = new ArrayList<>();
+        if (stationId != null) {
+            sql.append(" AND station_id = ?");
+            params.add(stationId);
+        }
         if (status != null && !status.isEmpty()) {
             sql.append(" AND status = ?");
             params.add(status);
@@ -104,12 +113,18 @@ public class FIRDAO {
             params.add("%" + complainant + "%");
         }
         if (fromDate != null && !fromDate.isEmpty()) {
-            sql.append(" AND incident_date >= ?");
-            params.add(Timestamp.valueOf(fromDate + " 00:00:00"));
+            Timestamp fromTs = toStartOfDay(fromDate);
+            if (fromTs != null) {
+                sql.append(" AND incident_date >= ?");
+                params.add(fromTs);
+            }
         }
         if (toDate != null && !toDate.isEmpty()) {
-            sql.append(" AND incident_date <= ?");
-            params.add(Timestamp.valueOf(toDate + " 23:59:59"));
+            Timestamp toTs = toEndOfDay(toDate);
+            if (toTs != null) {
+                sql.append(" AND incident_date <= ?");
+                params.add(toTs);
+            }
         }
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql.toString())) {
@@ -123,6 +138,22 @@ public class FIRDAO {
             e.printStackTrace();
         }
         return list;
+    }
+
+    private static Timestamp toStartOfDay(String date) {
+        try {
+            return Timestamp.valueOf(LocalDate.parse(date).atStartOfDay());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Timestamp toEndOfDay(String date) {
+        try {
+            return Timestamp.valueOf(LocalDate.parse(date).atTime(23, 59, 59));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public static List<FIR> getAllActive() {
