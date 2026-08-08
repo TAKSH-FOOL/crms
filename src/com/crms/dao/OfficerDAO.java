@@ -2,33 +2,84 @@ package com.crms.dao;
 
 import com.crms.model.Officer;
 import com.crms.config.DatabaseConnection;
-import com.crms.util.AuditLogger;
+import com.crms.model.User;
 import com.crms.Session;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDate;
+import java.util.LinkedList;
+import java.util.Scanner;
 
 public class OfficerDAO {
+    static Scanner sc = new Scanner(System.in);
 
     public static boolean create(Officer officer) {
-        String sql = "INSERT INTO officers (user_id, badge_number, officer_rank) VALUES (?,?,?)";
-        try (Connection conn = DatabaseConnection.getConnection();
+        String sql = "INSERT INTO officers (user_id, officer_rank, station_id) VALUES (?,?,?)";
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username);
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, officer.getUserId());
-            ps.setString(2, officer.getBadgeNumber());
-            ps.setString(3, officer.getOfficerRank());
+            ps.setString(2, officer.getOfficerRank());
+            ps.setInt(3, officer.getStationId());
             int rows = ps.executeUpdate();
             if (rows == 0) return false;
             try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) officer.setId(rs.getInt(1));
+                if (rs.next()) {
+                    officer.setId(rs.getInt(1));
+                }
             }
-            AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                    Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                    "CREATE_OFFICER", "officers", officer.getBadgeNumber(), null, officer.toString());
             return true;
         } catch (SQLException e) {
             System.err.println("Failed to create officer: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static LinkedList<Officer> getAllByStationId(int stationId) {
+        LinkedList<Officer> list = new LinkedList<>();
+        String sql = "SELECT * FROM officers WHERE station_id = ? AND is_active = 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, stationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) list.add(mapOfficer(rs));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
+    public static boolean updateBadgeNumberAndEmail(Officer officer) {
+        int year = LocalDate.now().getYear();
+        String finalBadge = year + String.format("%05d", officer.getId());
+        String email = "OFFICER" + finalBadge + "@police.gov.in";
+
+        String sqlBadge = "UPDATE officers SET badge_number = ? WHERE id = ?";
+        String sqlEmail = "UPDATE users SET email = ? WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps1 = conn.prepareStatement(sqlBadge);
+                 PreparedStatement ps2 = conn.prepareStatement(sqlEmail)) {
+                ps1.setString(1, finalBadge);
+                ps1.setInt(2, officer.getId());
+                ps1.executeUpdate();
+
+                ps2.setString(1, email);
+                ps2.setInt(2, officer.getUserId());
+                ps2.executeUpdate();
+
+                conn.commit();
+                officer.setBadgeNumber(finalBadge);
+                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                e.printStackTrace();
+                return false;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
             return false;
         }
     }
@@ -37,7 +88,7 @@ public class OfficerDAO {
         String sql = "SELECT * FROM officers WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
-             ) {
+        ) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return mapOfficer(rs);
@@ -52,7 +103,7 @@ public class OfficerDAO {
         String sql = "SELECT * FROM officers WHERE user_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
-             ) {
+        ) {
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return mapOfficer(rs);
@@ -63,9 +114,9 @@ public class OfficerDAO {
         return null;
     }
 
-    public static List<Officer> getAll() {
-        List<Officer> list = new ArrayList<>();
-        String sql = "SELECT * FROM officers";
+    public static LinkedList<Officer> getAll() {
+        LinkedList<Officer> list = new LinkedList<>();
+        String sql = "SELECT * FROM officers where officer_rank in ('SUB_INSPECTOR','SUPERINTENDENT') ";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -76,14 +127,40 @@ public class OfficerDAO {
         return list;
     }
 
+
+    public static LinkedList<Officer> getUnassignedOfficersByStation(int stationId) {
+        LinkedList<Officer> list = new LinkedList<>();
+        String sql = "SELECT o.* FROM officers o " +
+                "WHERE o.station_id = ? AND o.is_active = 1 " +
+                "AND NOT EXISTS (SELECT 1 FROM fir f " +
+                "WHERE f.assigned_officer_id = o.id " +
+                "AND f.is_active = 1 " +
+                "AND f.status IN ('ASSIGNED', 'INVESTIGATING'))";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, stationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapOfficer(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
     public static boolean update(Officer officer) {
         String sql = "UPDATE officers SET user_id=?, badge_number=?, officer_rank=? WHERE id=?";
-        try (Connection conn = DatabaseConnection.getConnection()) {
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username)) {
             // Fetch old
             Officer old = null;
             String selectOld = "SELECT * FROM officers WHERE id = ?";
             try (PreparedStatement psOld = conn.prepareStatement(selectOld);
-                 ) {
+            ) {
                 psOld.setInt(1, officer.getId());
                 try (ResultSet rsOld = psOld.executeQuery()) {
                     if (rsOld.next()) old = mapOfficer(rsOld);
@@ -92,14 +169,31 @@ public class OfficerDAO {
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setInt(1, officer.getUserId());
                 ps.setString(2, officer.getBadgeNumber());
-                ps.setString(3, officer.getOfficerRank());
+                System.out.println("Enter Officer Post ");
+                System.out.println("1. CONSTABLE\n" +
+                        "2. SUB_INSPECTOR\n" +
+                        "3. INSPECTOR\n" +
+                        "4. SUPERINTENDENT");
+                System.out.print("enter your choice : ");
+                int choice = sc.nextInt();
+                String officerRole;
+                if (choice == 1) {
+                    officerRole = "CONSTABLE";
+                } else if (choice == 2) {
+                    officerRole = "SUB_INSPECTOR";
+                } else if (choice == 3) {
+                    officerRole = "INSPECTOR";
+                } else if (choice == 4) {
+                    officerRole = "SUPERINTENDENT";
+                } else {
+                    System.out.println("Invalid officer rank.");
+                    return false;
+                }
+                ps.setString(3, officerRole);
                 ps.setInt(4, officer.getId());
                 int rows = ps.executeUpdate();
                 if (rows == 0) return false;
-                AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                        Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                        "UPDATE_OFFICER", "officers", String.valueOf(officer.getId()),
-                        old != null ? old.toString() : null, officer.toString());
+
                 return true;
             }
         } catch (SQLException e) {
@@ -108,11 +202,6 @@ public class OfficerDAO {
         }
     }
 
-    // No soft delete – deactivate user instead
-    public static boolean delete(int officerId) {
-        // Not implemented – see comment
-        return false;
-    }
 
     private static Officer mapOfficer(ResultSet rs) throws SQLException {
         Officer o = new Officer();

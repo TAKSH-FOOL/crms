@@ -1,19 +1,13 @@
 package com.crms.model;
 
 public class Officer {
-    private int id;
-    private int userId;
-    private String badgeNumber;
-    private String officerRank;  // renamed from 'rank'
+     int id;
+     int userId;
+     String badgeNumber;
+     String officerRank;  // renamed from 'rank'
+     int stationId;
 
     public Officer() {}
-
-    public Officer(int id, int userId, String badgeNumber, String officerRank) {
-        this.id = id;
-        this.userId = userId;
-        this.badgeNumber = badgeNumber;
-        this.officerRank = officerRank;
-    }
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -23,6 +17,8 @@ public class Officer {
     public void setBadgeNumber(String badgeNumber) { this.badgeNumber = badgeNumber; }
     public String getOfficerRank() { return officerRank; }
     public void setOfficerRank(String officerRank) { this.officerRank = officerRank; }
+    public int getStationId() { return stationId; }
+    public void setStationId(int stationId) { this.stationId = stationId; }
 
     @Override
     public String toString() {

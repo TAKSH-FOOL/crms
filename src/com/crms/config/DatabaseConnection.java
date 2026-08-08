@@ -25,4 +25,13 @@ public class DatabaseConnection {
             try { conn.close(); } catch (SQLException e) { e.printStackTrace(); }
         }
     }
+    public static Connection getConnectionWithAudit(int userId, String username) throws SQLException {
+        Connection conn = getConnection();
+        try (PreparedStatement ps = conn.prepareStatement("SET @app_user_id = ?, @app_username = ?")) {
+            ps.setInt(1, userId);
+            ps.setString(2, username);
+            ps.execute();
+        }
+        return conn;
+    }
 }

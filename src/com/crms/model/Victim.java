@@ -1,23 +1,16 @@
 package com.crms.model;
 
 public class Victim {
-    private int id;
-    private String firNumber;
-    private String firstName;
-    private String lastName;
-    private String contact;
-    private String address;
+     int id;
+     String firNumber;
+     String firstName;
+     String lastName;
+     String contact;
+     String address;
+     boolean isActive;
+     String harm_description;
 
     public Victim() {}
-
-    public Victim(int id, String firNumber, String firstName, String lastName, String contact, String address) {
-        this.id = id;
-        this.firNumber = firNumber;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.contact = contact;
-        this.address = address;
-    }
 
     // Getters and setters
     public int getId() { return id; }
@@ -32,6 +25,16 @@ public class Victim {
     public void setContact(String contact) { this.contact = contact; }
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+    public boolean isActive() { return isActive; }
+    public void setActive(boolean active) { this.isActive = active; }
+
+    public String getHarm_description() {
+        return harm_description;
+    }
+
+    public void setHarm_description(String harm_description) {
+        this.harm_description = harm_description;
+    }
 
     @Override
     public String toString() {

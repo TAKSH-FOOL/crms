@@ -4,11 +4,15 @@ import com.crms.Session;
 import com.crms.model.*;
 import com.crms.dao.*;
 import com.crms.util.InputHelper;
-import com.crms.util.InputValidator;
+import com.crms.util.ReportGenerator;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.LinkedList;
 import java.util.Scanner;
 
 public class StaffMenu {
@@ -29,8 +33,11 @@ public class StaffMenu {
             System.out.println("5. Add Victim");
             System.out.println("6. Add Witness");
             System.out.println("7. View Crime Records");
+            System.out.println("8. Add Crime Category");
+            System.out.println("9. Download FIR ");
             System.out.println("0. Logout");
-            choice = InputHelper.readInt(scanner, "Enter choice: ");
+            System.out.print( "Enter choice: ");
+            choice = InputHelper.readInt(scanner);
 
             switch (choice) {
                 case 1: registerFIR(); break;
@@ -40,6 +47,8 @@ public class StaffMenu {
                 case 5: addVictim(); break;
                 case 6: addWitness(); break;
                 case 7: viewCrimeRecords(); break;
+                case 8: addCategory(); break;
+                case 9: downloadFIRPdf(); break;
                 case 0: System.out.println("Logging out..."); return;
                 default: System.out.println("Invalid choice.");
             }
@@ -48,31 +57,12 @@ public class StaffMenu {
 
     private static void registerFIR() {
         FIR fir = new FIR();
-        System.out.print("FIR Number: ");
-        fir.setFirNumber(scanner.nextLine());
-        if (FIRDAO.getByFIRNumber(fir.getFirNumber()) != null) {
-            System.out.println("FIR number already exists.");
-            return;
-        }
-        System.out.print("Complainant Name: ");
-        fir.setComplainantName(scanner.nextLine());
-        System.out.print("Complainant Contact: ");
-        fir.setComplainantContact(scanner.nextLine());
-        System.out.print("Incident Location: ");
-        fir.setIncidentLocation(scanner.nextLine());
-        System.out.print("Incident Date (YYYY-MM-DD HH:MM:SS): ");
-        String dateStr = scanner.nextLine();
-        try {
-            LocalDateTime date = LocalDateTime.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            fir.setIncidentDate(date);
-        } catch (Exception e) {
-            System.out.println("Invalid date. Using current time.");
-            fir.setIncidentDate(LocalDateTime.now());
-        }
-        System.out.print("Incident Description: ");
-        fir.setIncidentDescription(scanner.nextLine());
-        System.out.print("Crime Category: ");
-        fir.setCrimeCategory(scanner.nextLine());
+        fir.setComplainantName(InputHelper.complainantName(scanner));
+        fir.setComplainantContact(InputHelper.complainantContact(scanner));
+        fir.setIncidentLocation(InputHelper.incidentLocation(scanner));
+        fir.setIncidentDate(InputHelper.incidentDateTime(scanner));
+        fir.setIncidentDescription(InputHelper.incidentDescription(scanner));
+        fir.setCrimeCategory(InputHelper.crimeCategoryIndexName(scanner));
         fir.setStatus("FILED");
         fir.setAssignedOfficerId(null);
         fir.setStationId(Session.getCurrentUser().getStationId());
@@ -85,27 +75,26 @@ public class StaffMenu {
     }
 
     private static void updateFIRDetails() {
-        System.out.print("Enter FIR number: ");
-        String firNum = scanner.nextLine();
+        FIRDAO.displayFIRNumbersByStationId(Session.getCurrentUser().getStationId());
+        String firNum = InputHelper.FIRNumber(scanner);
         FIR fir = FIRDAO.getByFIRNumber(firNum);
         if (fir == null || !fir.isActive()) {
             System.out.println("FIR not found.");
             return;
         }
-        System.out.print("New Complainant Name (leave blank to keep): ");
-        String name = scanner.nextLine();
+        String name = InputHelper.updateComplainantName(scanner);
         if (!name.isEmpty()) fir.setComplainantName(name);
-        System.out.print("New Complainant Contact (leave blank): ");
-        String contact = scanner.nextLine();
+
+        String contact = InputHelper.updateComplainantContact(scanner);
         if (!contact.isEmpty()) fir.setComplainantContact(contact);
-        System.out.print("New Incident Location (leave blank): ");
-        String loc = scanner.nextLine();
+
+        String loc = InputHelper.updateIncidentLocation(scanner);
         if (!loc.isEmpty()) fir.setIncidentLocation(loc);
-        System.out.print("New Incident Description (leave blank): ");
-        String desc = scanner.nextLine();
+
+        String desc = InputHelper.updateIncidentDescription(scanner);
         if (!desc.isEmpty()) fir.setIncidentDescription(desc);
-        System.out.print("New Crime Category (leave blank): ");
-        String cat = scanner.nextLine();
+
+        String cat = InputHelper.updateCrimeCategoryIndexName(scanner);
         if (!cat.isEmpty()) fir.setCrimeCategory(cat);
         if (FIRDAO.update(fir)) {
             System.out.println("FIR details updated.");
@@ -115,14 +104,14 @@ public class StaffMenu {
     }
 
     private static void viewFIRStatus() {
-        System.out.print("Enter FIR number: ");
-        String firNum = scanner.nextLine();
+        FIRDAO.displayFIRNumbersByStationId(Session.getCurrentUser().getStationId());
+        String firNum = InputHelper.FIRNumber(scanner);
         FIR fir = FIRDAO.getByFIRNumber(firNum);
         if (fir == null) {
             System.out.println("FIR not found.");
             return;
         }
-        System.out.println(fir);
+
         System.out.println("Status: " + fir.getStatus());
         if (fir.getAssignedOfficerId() != null) {
             Officer off = OfficerDAO.getById(fir.getAssignedOfficerId());
@@ -134,70 +123,129 @@ public class StaffMenu {
     }
 
     private static void searchFIRs() {
-        System.out.print("Filter by status (leave blank for all): ");
-        String status = scanner.nextLine();
-        if (!status.isEmpty() && !status.matches("FILED|ASSIGNED|INVESTIGATING|CLOSED")) {
-            System.out.println("Invalid status.");
-            return;
-        }
+        String status = InputHelper.FIRStatus(scanner);
         System.out.print("Complainant name (partial): ");
         String complainant = scanner.nextLine();
-        System.out.print("From date (YYYY-MM-DD, leave blank): ");
-        String from = scanner.nextLine();
-        System.out.print("To date (YYYY-MM-DD, leave blank): ");
-        String to = scanner.nextLine();
-        List<FIR> list = FIRDAO.search(status, complainant, from, to);
-        if (list.isEmpty()) {
+
+        System.out.print("From date (dd-MM-yyyy, leave blank): ");
+        String from = InputHelper.date(scanner);
+        System.out.print("To date (dd-MM-yyyy, leave blank): ");
+        String to = InputHelper.date(scanner);
+
+        LinkedList<FIR> globalList = FIRDAO.search(status, complainant, from, to);
+        LinkedList<FIR> stationList = new LinkedList<>();
+        for (FIR f : globalList) {
+            if (f.getStationId() == Session.getCurrentUser().getStationId()) {
+                stationList.add(f);
+            }
+        }
+        if (stationList.isEmpty()) {
             System.out.println("No FIRs found.");
         } else {
-            for (FIR f : list) System.out.println(f);
+            for (FIR f : stationList) {
+                System.out.println(f);
+            }
         }
     }
-
     private static void addVictim() {
         Victim victim = new Victim();
-        System.out.print("FIR Number: ");
-        victim.setFirNumber(scanner.nextLine());
-        System.out.print("First Name: ");
-        victim.setFirstName(scanner.nextLine());
-        System.out.print("Last Name: ");
-        victim.setLastName(scanner.nextLine());
-        System.out.print("Contact: ");
-        victim.setContact(scanner.nextLine());
-        System.out.print("Address: ");
-        victim.setAddress(scanner.nextLine());
-        if (VictimDAO.create(victim)) {
-            System.out.println("Victim added.");
-        } else {
-            System.out.println("Failed to add victim.");
+        if (FIRDAO.getAllByStationId(Session.getCurrentUser().getStationId()) != null){
+            FIRDAO.displayFIRNumbersByStationId(Session.getCurrentUser().getStationId());
+            victim.setFirNumber(InputHelper.FIRNumber(scanner));
+            victim.setFirstName(InputHelper.firstName(scanner));
+            victim.setLastName(InputHelper.lastName(scanner));
+            victim.setContact(InputHelper.phone(scanner));
+            victim.setAddress(InputHelper.address(scanner));
+            victim.setHarm_description(InputHelper.harmDescription(scanner));
+            if (VictimDAO.create(victim)) {
+                System.out.println("Victim added.");
+            } else {
+                System.out.println("Failed to add victim.");
+            }
         }
     }
 
     private static void addWitness() {
         Witness witness = new Witness();
-        System.out.print("FIR Number: ");
-        witness.setFirNumber(scanner.nextLine());
-        System.out.print("First Name: ");
-        witness.setFirstName(scanner.nextLine());
-        System.out.print("Last Name: ");
-        witness.setLastName(scanner.nextLine());
-        System.out.print("Contact: ");
-        witness.setContact(scanner.nextLine());
-        System.out.print("Statement: ");
-        witness.setStatement(scanner.nextLine());
-        if (WitnessDAO.create(witness)) {
-            System.out.println("Witness added.");
-        } else {
-            System.out.println("Failed to add witness.");
+        if (FIRDAO.getAllByStationId(Session.getCurrentUser().getStationId()) != null){
+            FIRDAO.displayFIRNumbersByStationId(Session.getCurrentUser().getStationId());
+            witness.setFirNumber(InputHelper.FIRNumber(scanner));
+            witness.setFirstName(InputHelper.firstName(scanner));
+            witness.setLastName(InputHelper.lastName(scanner));
+            witness.setContact(InputHelper.phone(scanner));
+
+            System.out.print("Statement: ");
+            witness.setStatement(scanner.nextLine());
+
+            if (WitnessDAO.create(witness)) {
+                System.out.println("Witness added.");
+            } else {
+                System.out.println("Failed to add witness.");
+            }
         }
     }
 
     private static void viewCrimeRecords() {
-        List<CrimeRecord> list = CrimeDAO.getAllActive();
+        LinkedList<CrimeRecord> list = CrimeDAO.getCrimeRecordsByStation(Session.getCurrentUser().getStationId());
         if (list.isEmpty()) {
             System.out.println("No crime records.");
         } else {
-            for (CrimeRecord c : list) System.out.println(c);
+            for (int i = 0; i < list.size(); i++) {
+                System.out.println(list.get(i));
+            }
+        }
+    }
+
+    public static void addCategory(){
+        String category = InputHelper.category(scanner);
+        if (CrimeCategoryDAO.addCategory(category)) {
+            System.out.println("Category added.");
+        } else {
+            System.out.println("Failed to add category.");
+        }
+    }
+
+    private static void downloadFIRPdf() {
+        FIRDAO.displayFIRNumbersByStationId(Session.getCurrentUser().getStationId());
+        String firNum = InputHelper.FIRNumber(scanner);
+        if (firNum == null) {
+            System.out.println("No FIR selected.");
+            return;
+        }
+        FIR fir = null;
+        if (FIRDAO.isFIRCurrentUserStation(firNum)) {
+            fir = FIRDAO.getByFIRNumber(firNum);
+        }
+        else {
+            System.out.println("fir not found");
+            return;
+        }
+        if (fir == null ) {
+            System.out.println("FIR not found or inactive.");
+            return;
+        }
+
+        String report = ReportGenerator.generateFIRReport(fir);
+        if (report == null) {
+            System.out.println("Failed to generate report.");
+            return;
+        }
+
+        // Create reports directory if it doesn't exist
+        File reportDir = new File("reports");
+        if (!reportDir.exists()) {
+            reportDir.mkdirs();
+        }
+
+        String fileName = "FIR_" + fir.getFirNumber().replace("/", "_") + ".txt";
+        File file = new File(reportDir, fileName);
+
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write(report);
+            writer.flush();
+            System.out.println("✅ Report saved to: " + file.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Failed to save report: " + e.getMessage());
         }
     }
 }

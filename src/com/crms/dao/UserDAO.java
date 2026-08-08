@@ -1,13 +1,13 @@
 package com.crms.dao;
 
+import com.crms.ds.UserBST;
 import com.crms.model.User;
 import com.crms.config.DatabaseConnection;
-import com.crms.util.AuditLogger;
 import com.crms.Session;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedList;
+
 
 public class UserDAO {
 
@@ -36,7 +36,10 @@ public class UserDAO {
 
     public static boolean create(User user) {
         String sql = "INSERT INTO users (username, password, role, station_id, full_name, active) VALUES (?,?,?,?,?,?)";
-        try (Connection conn = DatabaseConnection.getConnection();
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username);
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, user.getUsername());
             ps.setString(2, user.getPassword());
@@ -49,9 +52,7 @@ public class UserDAO {
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) user.setId(rs.getInt(1));
             }
-            AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                    Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                    "CREATE_USER", "users", user.getUsername(), null, user.toString());
+
             return true;
         } catch (SQLException e) {
             System.err.println("Failed to create user '" + user.getUsername() + "': " + e.getMessage());
@@ -92,17 +93,10 @@ public class UserDAO {
     public static boolean update(User user) {
         String sql = "UPDATE users SET username=?, password=?, role=?, station_id=?, full_name=?, active=? WHERE id=?";
         // Use a single connection to fetch old and perform update
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            // Fetch old state within the same transaction
-            User old = null;
-            String selectOld = "SELECT * FROM users WHERE id = ?";
-            try (PreparedStatement psOld = conn.prepareStatement(selectOld);
-                ) {
-                psOld.setInt(1, user.getId());
-                try ( ResultSet rsOld = psOld.executeQuery()){
-                    if (rsOld.next()) old = mapUser(rsOld);
-                }
-            }
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username)) {
 
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, user.getUsername());
@@ -114,10 +108,7 @@ public class UserDAO {
                 ps.setInt(7, user.getId());
                 int rows = ps.executeUpdate();
                 if (rows == 0) return false;
-                AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                        Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                        "UPDATE_USER", "users", user.getUsername(),
-                        old != null ? old.toString() : null, user.toString());
+
                 return true;
             }
         } catch (SQLException e) {
@@ -126,44 +117,44 @@ public class UserDAO {
         }
     }
 
-    public static boolean delete(int userId) {
-        String sql = "UPDATE users SET active = false WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            User old = getById(userId); // using separate connection is acceptable for deactivation
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, userId);
-                int rows = ps.executeUpdate();
-                if (rows == 0) return false;
-                AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                        Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                        "DELETE_USER", "users", String.valueOf(userId),
-                        old != null ? old.toString() : null, "active=false");
-                return true;
-            }
-        } catch (SQLException e) {
-            System.err.println("Failed to deactivate user ID " + userId + ": " + e.getMessage());
-            return false;
-        }
-    }
+    public static LinkedList<User> searchByRole(String role) {
+        // Build the BST from all active users
+        UserBST bst = new UserBST();
+        String sql = "SELECT * FROM users WHERE active = true";
 
-    public static List<User> searchByRole(String role) {
-        List<User> list = new ArrayList<>();
-        String sql = "SELECT * FROM users WHERE role = ? AND active = true";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
-            ) {
-            ps.setString(1, role);
-            try ( ResultSet rs = ps.executeQuery()){
-                while (rs.next()) list.add(mapUser(rs));
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                User user = mapUser(rs);
+                bst.insert(user);
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
+            return new LinkedList(); // empty list
         }
-        return list;
+
+        return bst.searchByRole(role);
     }
 
-    public static List<User> getAllActive() {
-        List<User> list = new ArrayList<>();
+    public static boolean isUserNameCurrentStationId(String username) {
+        User user = getByUsername(username);
+        if (user.getStationId() == Session.getCurrentUser().getStationId()){
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isNonAdmin(String username) {
+        User user = getByUsername(username);
+        if (user == null) return false;
+        return !"ADMIN".equalsIgnoreCase(user.getRole());
+    }
+
+    public static LinkedList<User> getAllActive() {
+        LinkedList<User> list = new LinkedList<>();
         String sql = "SELECT * FROM users WHERE active = true";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -175,6 +166,54 @@ public class UserDAO {
         return list;
     }
 
+    public static void viewAllUserByStationId(){
+        LinkedList list = getAllUserByStationId();
+        for (int i= 0; i< list.size(); i++){
+            User temp = (User) list.get(i);
+            System.out.println(i+1 + " " + temp.getFullName() );
+        }
+    }
+
+
+
+    public static LinkedList<User> getAllUserByStationId(){
+        String sql = "select * from users where station_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            // Set the station_id parameter
+            ps.setInt(1, Session.getCurrentUser().getStationId());
+            ResultSet rs = ps.executeQuery();
+            LinkedList<User> list = new LinkedList<>();
+            while (rs.next()) {
+                list.add(mapUser(rs));
+            }
+            return list;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return new LinkedList<>();
+        }
+    }
+
+    public static LinkedList<User> getUsersByStation(int stationId, String role, boolean activeOnly) {
+        LinkedList<User> list = new LinkedList<>();
+        String sql = "{CALL GetUsersByStation(?, ?, ?)}";
+        try (Connection conn = DatabaseConnection.getConnection();
+             CallableStatement cs = conn.prepareCall(sql)) {
+            cs.setInt(1, stationId);
+            cs.setString(2, role);
+            cs.setByte(3, (byte) (activeOnly ? 1 : 0));
+            try (ResultSet rs = cs.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapUser(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+
     private static User mapUser(ResultSet rs) throws SQLException {
         User u = new User();
         u.setId(rs.getInt("id"));
@@ -184,6 +223,27 @@ public class UserDAO {
         u.setStationId(rs.getInt("station_id"));
         u.setFullName(rs.getString("full_name"));
         u.setActive(rs.getBoolean("active"));
+        u.setEmail(rs.getString("email"));
         return u;
+    }
+
+    // In UserDAO.java
+    public static LinkedList<User> getAll() {
+        LinkedList<User> list = new LinkedList<>();
+        String sql = "SELECT * FROM users";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                list.add(mapUser(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static boolean isUsernameAvailable(String username) {
+        return getByUsername(username.trim()) == null;
     }
 }

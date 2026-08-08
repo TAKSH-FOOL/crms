@@ -2,20 +2,22 @@ package com.crms.dao;
 
 import com.crms.model.Investigation;
 import com.crms.config.DatabaseConnection;
+import com.crms.model.User;
 import com.crms.util.AuditLogger;
 import com.crms.Session;
 
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+
 
 public class InvestigationDAO {
 
     public static boolean create(Investigation investigation) {
         String sql = "INSERT INTO investigations (fir_number, officer_id, notes, status, start_date, is_active) " +
                 "VALUES (?,?,?,?,?,?)";
-        try (Connection conn = DatabaseConnection.getConnection();
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username);
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, investigation.getFirNumber());
             ps.setInt(2, investigation.getOfficerId());
@@ -26,11 +28,13 @@ public class InvestigationDAO {
             int rows = ps.executeUpdate();
             if (rows == 0) return false;
             try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) investigation.setId(rs.getInt(1));
+                if (rs.next()) {
+                    investigation.setId(rs.getInt(1));
+                    int id = rs.getInt(1);
+                    investigation.setId(id);
+                }
             }
-            AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                    Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                    "CREATE_INVESTIGATION", "investigations", investigation.getFirNumber(), null, investigation.toString());
+
             return true;
         } catch (SQLException e) {
             System.err.println("Failed to create investigation: " + e.getMessage());
@@ -39,24 +43,34 @@ public class InvestigationDAO {
     }
 
     public static Investigation getByFIRNumber(String firNumber) {
-        String sql = "SELECT * FROM investigations WHERE fir_number = ? AND is_active = true";
+        // Build the BST from all active investigations
+        String sql = "SELECT * FROM investigations WHERE fir_number = ?";
+        Investigation inv = null;
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ) {
-            ps.setString(1, firNumber);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return mapInvestigation(rs);
+             PreparedStatement ps = conn.prepareStatement(sql);)
+           {
+               ps.setString(1, firNumber);
+               ResultSet rs = ps.executeQuery();
+               while (rs.next()) {
+                 inv = mapInvestigation(rs);
+
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
+
+        return inv;
     }
 
     public static boolean update(Investigation investigation) {
         String sql = "UPDATE investigations SET officer_id=?, notes=?, status=?, start_date=?, is_active=? " +
                 "WHERE fir_number=?";
-        try (Connection conn = DatabaseConnection.getConnection()) {
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username)) {
             Investigation old = null;
             String selectOld = "SELECT * FROM investigations WHERE fir_number = ?";
             try (PreparedStatement psOld = conn.prepareStatement(selectOld);
@@ -75,10 +89,7 @@ public class InvestigationDAO {
                 ps.setString(6, investigation.getFirNumber());
                 int rows = ps.executeUpdate();
                 if (rows == 0) return false;
-                AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                        Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                        "UPDATE_INVESTIGATION", "investigations", investigation.getFirNumber(),
-                        old != null ? old.toString() : null, investigation.toString());
+
                 return true;
             }
         } catch (SQLException e) {
@@ -87,25 +98,7 @@ public class InvestigationDAO {
         }
     }
 
-    public static boolean delete(String firNumber) {
-        String sql = "UPDATE investigations SET is_active = false WHERE fir_number = ?";
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            Investigation old = getByFIRNumber(firNumber);
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, firNumber);
-                int rows = ps.executeUpdate();
-                if (rows == 0) return false;
-                AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                        Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                        "DELETE_INVESTIGATION", "investigations", firNumber,
-                        old != null ? old.toString() : null, "is_active=false");
-                return true;
-            }
-        } catch (SQLException e) {
-            System.err.println("Failed to delete investigation: " + e.getMessage());
-            return false;
-        }
-    }
+
 
     private static Investigation mapInvestigation(ResultSet rs) throws SQLException {
         Investigation i = new Investigation();

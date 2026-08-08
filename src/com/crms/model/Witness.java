@@ -1,25 +1,25 @@
 package com.crms.model;
 
 public class Witness {
-    private int id;
-    private String firNumber;
-    private String firstName;
-    private String lastName;
-    private String contact;
-    private String statement;
-
+     int id;
+     String firNumber;
+     String firstName;
+     String lastName;
+     String contact;
+     String statement;
+     boolean isActive;
     public Witness() {}
 
-    public Witness(int id, String firNumber, String firstName, String lastName, String contact, String statement) {
-        this.id = id;
-        this.firNumber = firNumber;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.contact = contact;
-        this.statement = statement;
+    // Getters and setters
+
+    public boolean isActive() {
+        return isActive;
     }
 
-    // Getters and setters
+    public void setActive(boolean active) {
+        isActive = active;
+    }
+
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     public String getFirNumber() { return firNumber; }

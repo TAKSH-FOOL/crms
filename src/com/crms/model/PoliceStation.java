@@ -1,21 +1,15 @@
 package com.crms.model;
 
 public class PoliceStation {
-    private int id;
-    private String stationName;
-    private String address;
-    private String phone;
-    private boolean isActive;
+     int id;
+     String stationName;
+     String address;
+     String phone;
+     boolean isActive;
+     String stationCode;
 
     public PoliceStation() {}
 
-    public PoliceStation(int id, String stationName, String address, String phone, boolean isActive) {
-        this.id = id;
-        this.stationName = stationName;
-        this.address = address;
-        this.phone = phone;
-        this.isActive = isActive;
-    }
 
     // Getters and setters
     public int getId() { return id; }
@@ -26,6 +20,8 @@ public class PoliceStation {
     public void setAddress(String address) { this.address = address; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getStationCode() { return stationCode; }
+    public void setStationCode(String stationCode) { this.stationCode = stationCode; }
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
 
@@ -36,6 +32,7 @@ public class PoliceStation {
                 ", stationName='" + stationName + '\'' +
                 ", address='" + address + '\'' +
                 ", phone='" + phone + '\'' +
+                ", stationCode='" + stationCode + '\'' +
                 ", isActive=" + isActive +
                 '}';
     }

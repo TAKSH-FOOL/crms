@@ -1,0 +1,16 @@
+======================================================
+              FIRST INFORMATION REPORT (FIR)          
+======================================================
+
+FIR Number         : FIR-KPS-3
+Complainant        : trial
+Contact            : 9874563210
+Incident Location  : kheda
+Incident Date      : 02-05-2000 05:06
+Description        : jbji
+Crime Category     : Theft
+Status             : CLOSED
+Station            : kheda police station
+Assigned Officer   : ID: 5
+Created At         : 05-08-2026 10:23
+======================================================

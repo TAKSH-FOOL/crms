@@ -4,14 +4,12 @@ import com.crms.model.AuditLog;
 import com.crms.config.DatabaseConnection;
 
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedList;
 
 public class AuditLogDAO {
 
-    public static List<AuditLog> getAll() {
-        List<AuditLog> list = new ArrayList<>();
+    public static LinkedList getAll() {
+        LinkedList list = new LinkedList();
         String sql = "SELECT * FROM audit_logs ORDER BY timestamp DESC";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -23,8 +21,8 @@ public class AuditLogDAO {
         return list;
     }
 
-    public static List<AuditLog> getByUser(int userId) {
-        List<AuditLog> list = new ArrayList<>();
+    public static LinkedList getByUser(int userId) {
+        LinkedList list = new LinkedList();
         String sql = "SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {

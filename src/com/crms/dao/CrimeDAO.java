@@ -2,37 +2,46 @@ package com.crms.dao;
 
 import com.crms.model.CrimeRecord;
 import com.crms.config.DatabaseConnection;
-import com.crms.util.AuditLogger;
+import com.crms.model.FIR;
+import com.crms.model.User;
 import com.crms.Session;
 
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDate;
+import java.util.LinkedList;
 
 public class CrimeDAO {
 
     public static boolean create(CrimeRecord crime) {
-        String sql = "INSERT INTO crime_records (crime_number, fir_number, crime_name, crime_description, " +
-                "crime_location, incident_date, status, is_active) VALUES (?,?,?,?,?,?,?,?)";
-        try (Connection conn = DatabaseConnection.getConnection();
+
+        String sql = "INSERT INTO crime_records (fir_number, crime_name, crime_description, " +
+                "crime_location, incident_date, status) VALUES (?,?,?,?,?,?)";
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username);
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, crime.getCrimeNumber());
-            ps.setString(2, crime.getFirNumber());
-            ps.setString(3, crime.getCrimeName());
-            ps.setString(4, crime.getCrimeDescription());
-            ps.setString(5, crime.getCrimeLocation());
-            ps.setTimestamp(6, Timestamp.valueOf(crime.getIncidentDate()));
-            ps.setString(7, crime.getStatus());
-            ps.setBoolean(8, crime.isActive());
+            ps.setString(1, crime.getFirNumber());
+            ps.setString(2, crime.getCrimeName());
+            ps.setString(3, crime.getCrimeDescription());
+            ps.setString(4, crime.getCrimeLocation());
+            ps.setTimestamp(5, Timestamp.valueOf(crime.getIncidentDate()));
+            ps.setString(6, crime.getStatus());
             int rows = ps.executeUpdate();
             if (rows == 0) return false;
             try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) crime.setId(rs.getInt(1));
+                if (rs.next()) {
+                    crime.setId(rs.getInt(1));
+                    int id = rs.getInt(1);
+                    String code = "CN-" +PoliceStationDAO.getStationCodeById(Session.getCurrentUser().getStationId())+"-"+ LocalDate.now().getYear()+"-" + id;
+                    String sql1 = "update crime_records set crime_number = ? where id = ?";
+                    try (PreparedStatement pst = conn.prepareStatement(sql1);){
+                        pst.setString(1,code);
+                        pst.setInt(2,id);
+                        pst.executeUpdate();
+                    }
+                }
             }
-            AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                    Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                    "CREATE_CRIME", "crime_records", crime.getCrimeNumber(), null, crime.toString());
             return true;
         } catch (SQLException e) {
             System.err.println("Failed to create crime record: " + e.getMessage());
@@ -55,6 +64,34 @@ public class CrimeDAO {
         return null;
     }
 
+    public static void displayAllCrimeNumber(){
+        LinkedList list = getAllActiveCrimeRecord();
+        if (list != null){
+            for (int i = 0; i < list.size(); i++){
+                CrimeRecord cr = (CrimeRecord) list.get(i);
+                System.out.println((i + 1) + ". " + cr.getCrimeNumber());
+            }
+        }
+        else {
+            System.out.println("no cime record");
+        }
+    }
+
+    public static LinkedList<CrimeRecord> getAllActiveCrimeRecord() {
+        LinkedList<CrimeRecord> crimeRecords = new LinkedList();
+        String sql = "SELECT * FROM crime_records WHERE is_active = true";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                crimeRecords.add(mapCrime(rs));   // ← now all fields are set
+            }
+        } catch (SQLException e) {
+            System.err.println("Failed to get active crime records: " + e.getMessage());
+        }
+        return crimeRecords;
+    }
+
     public static CrimeRecord getByCrimeNumber(String crimeNumber) {
         String sql = "SELECT * FROM crime_records WHERE crime_number = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -70,15 +107,18 @@ public class CrimeDAO {
         return null;
     }
 
-    public static List<CrimeRecord> getByFIRNumber(String firNumber) {
-        List<CrimeRecord> list = new ArrayList<>();
-        String sql = "SELECT * FROM crime_records WHERE fir_number = ? AND is_active = true";
+    public static LinkedList<CrimeRecord> getAllByStationId(int stationId) {
+        LinkedList<CrimeRecord> list = new LinkedList<>();
+        String sql = "SELECT cr.* FROM crime_records cr " +
+                "JOIN fir f ON cr.fir_number = f.fir_number " +
+                "WHERE f.station_id = ? AND cr.is_active = true";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ) {
-            ps.setString(1, firNumber);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, stationId);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) list.add(mapCrime(rs));
+                while (rs.next()) {
+                    list.add(mapCrime(rs));
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -86,8 +126,8 @@ public class CrimeDAO {
         return list;
     }
 
-    public static List<CrimeRecord> getAllActive() {
-        List<CrimeRecord> list = new ArrayList<>();
+    public static LinkedList<CrimeRecord> getAllActive() {
+        LinkedList<CrimeRecord> list = new LinkedList();
         String sql = "SELECT * FROM crime_records WHERE is_active = true";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -99,10 +139,66 @@ public class CrimeDAO {
         return list;
     }
 
+    public static LinkedList<CrimeRecord> getAllCrimeRecords() {
+        LinkedList<CrimeRecord> list = new LinkedList();
+        String sql = "SELECT * FROM crime_records";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) list.add(mapCrime(rs));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static void displayAllCrimeRecords() {
+        LinkedList<CrimeRecord> list = getAllCrimeRecords();
+        if (list.isEmpty()) {
+            System.out.println("No crime records.");
+        } else {
+            int i = 1;
+            for (int idx = 0; idx < list.size(); idx++) {
+                CrimeRecord c =  list.get(idx);
+                System.out.println(i+1);
+                System.out.println(c);
+                i++;
+            }
+        }
+    }
+
+    public static void displayCrimeRecordTable(LinkedList<CrimeRecord> crimes) {
+        if (crimes == null || crimes.isEmpty()) {
+            System.out.println("No crime records found.");
+            return;
+        }
+
+        System.out.println("\n+------+----------------------+----------------------+----------------------+----------+--------+");
+        System.out.printf("| %-4s | %-20s | %-20s | %-20s | %-8s | %-6s |\n",
+                "ID", "Crime Number", "FIR Number", "Crime Name", "Status", "Active");
+        System.out.println("+------+----------------------+----------------------+----------------------+----------+--------+");
+
+        for (CrimeRecord c : crimes) {
+            String crimeNum = c.getCrimeNumber() != null ? c.getCrimeNumber() : "N/A";
+            String firNum = c.getFirNumber() != null ? c.getFirNumber() : "N/A";
+            String name = c.getCrimeName() != null ? c.getCrimeName() : "N/A";
+            if (name.length() > 20) name = name.substring(0, 17) + "...";
+            String status = c.getStatus() != null ? c.getStatus() : "N/A";
+            String active = c.isActive() ? "Yes" : "No";
+
+            System.out.printf("| %-4d | %-20s | %-20s | %-20s | %-8s | %-6s |\n",
+                    c.getId(), crimeNum, firNum, name, status, active);
+        }
+        System.out.println("+------+----------------------+----------------------+----------------------+----------+--------+");
+    }
+
     public static boolean update(CrimeRecord crime) {
         String sql = "UPDATE crime_records SET fir_number=?, crime_name=?, crime_description=?, " +
                 "crime_location=?, incident_date=?, status=?, is_active=? WHERE crime_number=?";
-        try (Connection conn = DatabaseConnection.getConnection()) {
+        User current = Session.getCurrentUser();
+        int userId = (current != null) ? current.getId() : 0;
+        String username = (current != null) ? current.getUsername() : "SYSTEM";
+        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username)) {
             CrimeRecord old = null;
             String selectOld = "SELECT * FROM crime_records WHERE crime_number = ?";
             try (PreparedStatement psOld = conn.prepareStatement(selectOld);
@@ -123,10 +219,6 @@ public class CrimeDAO {
                 ps.setString(8, crime.getCrimeNumber());
                 int rows = ps.executeUpdate();
                 if (rows == 0) return false;
-                AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                        Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                        "UPDATE_CRIME", "crime_records", crime.getCrimeNumber(),
-                        old != null ? old.toString() : null, crime.toString());
                 return true;
             }
         } catch (SQLException e) {
@@ -135,25 +227,6 @@ public class CrimeDAO {
         }
     }
 
-    public static boolean delete(String crimeNumber) {
-        String sql = "UPDATE crime_records SET is_active = false WHERE crime_number = ?";
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            CrimeRecord old = getByCrimeNumber(crimeNumber);
-            try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, crimeNumber);
-                int rows = ps.executeUpdate();
-                if (rows == 0) return false;
-                AuditLogger.log(Session.getCurrentUser() != null ? Session.getCurrentUser().getId() : 0,
-                        Session.getCurrentUser() != null ? Session.getCurrentUser().getUsername() : "SYSTEM",
-                        "DELETE_CRIME", "crime_records", crimeNumber,
-                        old != null ? old.toString() : null, "is_active=false");
-                return true;
-            }
-        } catch (SQLException e) {
-            System.err.println("Failed to delete crime record: " + e.getMessage());
-            return false;
-        }
-    }
 
     private static CrimeRecord mapCrime(ResultSet rs) throws SQLException {
         CrimeRecord c = new CrimeRecord();
@@ -168,5 +241,90 @@ public class CrimeDAO {
         c.setStatus(rs.getString("status"));
         c.setActive(rs.getBoolean("is_active"));
         return c;
+    }
+
+    public static LinkedList<CrimeRecord> getCrimeRecordsByStation(int stationId) {
+        LinkedList<CrimeRecord> list = new LinkedList<>();
+        String sql = "{CALL GetCrimeRecordsByStation(?)}";
+        try (Connection conn = DatabaseConnection.getConnection();
+             CallableStatement cs = conn.prepareCall(sql)) {
+            cs.setInt(1, stationId);
+            try (ResultSet rs = cs.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapCrime(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static boolean isCrimeRecordAtStation(String crimeNumber, int stationId) {
+        if (crimeNumber == null || crimeNumber.trim().isEmpty()) {
+            return false;
+        }
+        String sql = "SELECT 1 FROM crime_records cr " +
+                "JOIN fir f ON cr.fir_number = f.fir_number " +
+                "WHERE cr.crime_number = ? AND f.station_id = ? AND cr.is_active = 1 AND f.is_active = 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, crimeNumber);
+            ps.setInt(2, stationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next(); // returns true if any row found
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static LinkedList<CrimeRecord> getCrimeRecordsByOfficerId(int officerId) {
+        LinkedList<CrimeRecord> list = new LinkedList<>();
+        String sql = "SELECT cr.* FROM crime_records cr " +
+                "JOIN fir f ON cr.fir_number = f.fir_number " +
+                "WHERE f.assigned_officer_id = ? AND cr.is_active = 1 AND f.is_active = 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, officerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapCrime(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    /**
+     * Checks if a crime record with the given crime number is linked to a FIR
+     * that is assigned to the specified officer.
+     *
+     * @param crimeNumber the crime record number
+     * @param officerId the officer ID to check
+     * @return true if the crime record exists, is active, and its FIR is assigned to the officer
+     */
+    public static boolean isCrimeRecordAssignedToOfficer(String crimeNumber, int officerId) {
+        if (crimeNumber == null || crimeNumber.trim().isEmpty()) {
+            return false;
+        }
+        String sql = "SELECT 1 FROM crime_records cr " +
+                "JOIN fir f ON cr.fir_number = f.fir_number " +
+                "WHERE cr.crime_number = ? AND f.assigned_officer_id = ? " +
+                "AND cr.is_active = 1 AND f.is_active = 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, crimeNumber);
+            ps.setInt(2, officerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

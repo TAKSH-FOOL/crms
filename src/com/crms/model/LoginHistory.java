@@ -1,26 +1,18 @@
 package com.crms.model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class LoginHistory {
-    private int id;
-    private String username;
-    private LocalDateTime loginTime;
-    private String ipAddress;
-    private boolean success;
-    private String failureReason;
+     int id;
+     String username;
+     LocalDateTime loginTime;
+     String ipAddress;
+     boolean success;
+     String failureReason;
 
     public LoginHistory() {}
 
-    public LoginHistory(int id, String username, LocalDateTime loginTime, String ipAddress,
-                        boolean success, String failureReason) {
-        this.id = id;
-        this.username = username;
-        this.loginTime = loginTime;
-        this.ipAddress = ipAddress;
-        this.success = success;
-        this.failureReason = failureReason;
-    }
 
     // Getters and setters
     public int getId() { return id; }
@@ -36,13 +28,24 @@ public class LoginHistory {
     public String getFailureReason() { return failureReason; }
     public void setFailureReason(String failureReason) { this.failureReason = failureReason; }
 
+
     @Override
     public String toString() {
-        return "LoginHistory{" +
-                "id=" + id +
-                ", username='" + username + '\'' +
-                ", loginTime=" + loginTime +
-                ", success=" + success +
-                '}';
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+        StringBuilder sb = new StringBuilder();
+        sb.append("┌──────────────────────────────────────────────────────────┐\n");
+        sb.append("│                   LOGIN HISTORY ENTRY                    │\n");
+        sb.append("├──────────────────────────────────────────────────────────┤\n");
+        sb.append(String.format("%-20s : %-40s \n", "ID", id));
+        sb.append(String.format("%-20s : %-40s \n", "Username", username != null ? username : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Login Time",
+                loginTime != null ? loginTime.format(formatter) : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "IP Address", ipAddress != null ? ipAddress : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Success", success ? "✅ Yes" : "❌ No"));
+        if (!success && failureReason != null) {
+            sb.append(String.format("%-20s : %-40s \n", "Failure Reason", failureReason));
+        }
+        sb.append("└──────────────────────────────────────────────────────────┘");
+        return sb.toString();
     }
 }

@@ -1,32 +1,21 @@
 package com.crms.model;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 public class Criminal {
-    private int id;
-    private String firstName;
-    private String lastName;
-    private LocalDate dob;
-    private String gender;
-    private String address;
-    private String phone;
-    private String wantedStatus;   // WANTED, NOT_WANTED
-    private boolean isActive;
+     int id;
+     String firstName;
+     String lastName;
+     LocalDate dob;
+     String gender;
+     String address;
+     String phone;
+     String wantedStatus;   // WANTED, NOT_WANTED
+     boolean isActive;
 
     public Criminal() {}
 
-    public Criminal(int id, String firstName, String lastName, LocalDate dob, String gender,
-                    String address, String phone, String wantedStatus, boolean isActive) {
-        this.id = id;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.dob = dob;
-        this.gender = gender;
-        this.address = address;
-        this.phone = phone;
-        this.wantedStatus = wantedStatus;
-        this.isActive = isActive;
-    }
 
     // Getters and setters
     public int getId() { return id; }
@@ -48,13 +37,25 @@ public class Criminal {
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
 
+
     @Override
     public String toString() {
-        return "Criminal{" +
-                "id=" + id +
-                ", firstName='" + firstName + '\'' +
-                ", lastName='" + lastName + '\'' +
-                ", wantedStatus='" + wantedStatus + '\'' +
-                '}';
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        StringBuilder sb = new StringBuilder();
+        sb.append("┌──────────────────────────────────────────────────────────┐\n");
+        sb.append("│                    CRIMINAL DETAILS                      │\n");
+        sb.append("├──────────────────────────────────────────────────────────┤\n");
+        sb.append(String.format("%-20s : %-40s \n", "ID", id));
+        sb.append(String.format("%-20s : %-40s \n", "First Name", firstName != null ? firstName : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Last Name", lastName != null ? lastName : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Date of Birth",
+                dob != null ? dob.format(formatter) : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Gender", gender != null ? gender : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Address", address != null ? address : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Phone", phone != null ? phone : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Wanted Status",
+                wantedStatus != null ? wantedStatus : "N/A"));
+        sb.append("└──────────────────────────────────────────────────────────┘");
+        return sb.toString();
     }
 }

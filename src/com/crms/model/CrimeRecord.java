@@ -1,33 +1,20 @@
 package com.crms.model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class CrimeRecord {
-    private int id;
-    private String crimeNumber;
-    private String firNumber;
-    private String crimeName;
-    private String crimeDescription;
-    private String crimeLocation;
-    private LocalDateTime incidentDate;
-    private String status;      // ACTIVE, SOLVED, CLOSED
-    private boolean isActive;
+     int id;
+     String crimeNumber;
+     String firNumber;
+     String crimeName;
+     String crimeDescription;
+     String crimeLocation;
+     LocalDateTime incidentDate;
+     String status;      // ACTIVE, SOLVED, CLOSED
+     boolean isActive;
 
     public CrimeRecord() {}
-
-    public CrimeRecord(int id, String crimeNumber, String firNumber, String crimeName,
-                       String crimeDescription, String crimeLocation, LocalDateTime incidentDate,
-                       String status, boolean isActive) {
-        this.id = id;
-        this.crimeNumber = crimeNumber;
-        this.firNumber = firNumber;
-        this.crimeName = crimeName;
-        this.crimeDescription = crimeDescription;
-        this.crimeLocation = crimeLocation;
-        this.incidentDate = incidentDate;
-        this.status = status;
-        this.isActive = isActive;
-    }
 
     // Getters and setters
     public int getId() { return id; }
@@ -49,14 +36,28 @@ public class CrimeRecord {
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
 
+
     @Override
     public String toString() {
-        return "CrimeRecord{" +
-                "id=" + id +
-                ", crimeNumber='" + crimeNumber + '\'' +
-                ", firNumber='" + firNumber + '\'' +
-                ", crimeName='" + crimeName + '\'' +
-                ", status='" + status + '\'' +
-                '}';
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+        StringBuilder sb = new StringBuilder();
+        sb.append("┌──────────────────────────────────────────────────────────┐\n");
+        sb.append("│                  CRIME RECORD DETAILS                  │\n");
+        sb.append("├──────────────────────────────────────────────────────────┤\n");
+        sb.append(String.format("%-20s : %-40s \n", "ID", id));
+        sb.append(String.format("%-20s : %-40s \n", "Crime Number", crimeNumber != null ? crimeNumber : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "FIR Number", firNumber != null ? firNumber : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Crime Name", crimeName != null ? crimeName : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Description",
+                crimeDescription != null ?
+                        (crimeDescription.length() > 50 ? crimeDescription.substring(0, 47) + "..." : crimeDescription)
+                        : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Location", crimeLocation != null ? crimeLocation : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Incident Date",
+                incidentDate != null ? incidentDate.format(formatter) : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Status", status != null ? status : "N/A"));
+        sb.append(String.format("%-20s : %-40s \n", "Active", isActive ? "✅ Yes" : "❌ No"));
+        sb.append("└──────────────────────────────────────────────────────────┘");
+        return sb.toString();
     }
 }
