@@ -15,11 +15,12 @@ import java.util.LinkedList;
 public class CrimeCategoryDAO {
    static Scanner sc = new Scanner(System.in);
 
-    public static boolean addCategory(String category){
-// Check if category already exists
+    public static boolean addCategory(String category) {
+        // Check if category already exists
         String checkSql = "SELECT id FROM crime_categories WHERE category = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(checkSql)) {
+             PreparedStatement ps = conn.prepareStatement(checkSql);
+             ) {
             ps.setString(1, category);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -30,21 +31,22 @@ public class CrimeCategoryDAO {
             e.printStackTrace();
             return false;
         }
-        // Proceed with insert...
 
-        String sql = "insert into crime_categorys (category) values(?)";
+        // Proceed with insert – ensure table name matches
+        String sql = "INSERT INTO crime_categories (category) VALUES (?)"; // fixed spelling
         User current = Session.getCurrentUser();
         int userId = (current != null) ? current.getId() : 0;
         String username = (current != null) ? current.getUsername() : "SYSTEM";
+
         try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username);
-             PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, category);
+            int rowsAffected = ps.executeUpdate();   // 🔥 execute the insert
+            return rowsAffected > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
-        return true;
     }
 
     public static LinkedList getAllCategory() {
@@ -71,25 +73,5 @@ public class CrimeCategoryDAO {
         }
     }
 
-    public static void updateCrimeCategory(){
-        User current = Session.getCurrentUser();
-        int userId = (current != null) ? current.getId() : 0;
-        String username = (current != null) ? current.getUsername() : "SYSTEM";
-        viewAllCrimeCategory();
-        String sql = "update crime_category set category = ? where id = ?";
-        try (Connection conn = DatabaseConnection.getConnectionWithAudit(userId, username);
-             PreparedStatement pst = conn.prepareStatement(sql);
-        ) {
-            System.out.println("enter category id : ");
-            int id = sc.nextInt();
-            System.out.println("enter updated category : ");
-            String updatedCategory = sc.next().toUpperCase().trim();
-            pst.setString(1, updatedCategory);
-            pst.setInt(2, id);
-            pst.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
 
 }

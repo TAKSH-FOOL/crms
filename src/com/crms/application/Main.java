@@ -54,10 +54,9 @@ public class Main {
             }
 
             System.out.println("--------------LOGIN PAGE--------------");
-            System.out.print("Username: ");
-            String username = scanner.nextLine();
-            System.out.print("Password: ");
-            String password = scanner.nextLine();
+            String username = InputHelper.username(scanner);
+            String password = InputHelper.password(scanner);
+
             User user = UserDAO.authenticate(username, password);
             if (user != null){
                 if (loginChoice == 1){
@@ -106,7 +105,7 @@ public class Main {
                 }
             } else {
                 LoginTracker.recordLogin(username, false, "Invalid credentials");
-                System.out.println("Invalid username or password.");
+                System.out.println("Invalid username or password or no user exists.");
                 System.out.print("Try again? (y/n): ");
                 String again = scanner.nextLine();
                 if (!again.equalsIgnoreCase("y")) {

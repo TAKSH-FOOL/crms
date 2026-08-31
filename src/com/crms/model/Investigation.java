@@ -32,12 +32,17 @@ public class Investigation {
     public void setActive(boolean active) { isActive = active; }
 
 
+    @Override
     public String toString() {
-        return "Investigation{" +
-                "id=" + id +
-                ", firNumber='" + firNumber + '\'' +
-                ", officerId=" + officerId +
-                ", status='" + status + '\'' +
-                '}';
+        return String.format(
+                "Investigation #%d [FIR: %s] | Officer: %d | Status: %s | Started: %s | Active: %s | Notes: %s",
+                id,
+                firNumber,
+                officerId,
+                status != null ? status : "N/A",
+                startDate != null ? startDate : "N/A",
+                isActive ? "Yes" : "No",
+                notes != null ? (notes.length() > 30 ? notes.substring(0, 30) + "…" : notes) : "No notes"
+        );
     }
 }

@@ -2,7 +2,6 @@ package com.crms.dao;
 
 import com.crms.model.CrimeRecord;
 import com.crms.config.DatabaseConnection;
-import com.crms.model.FIR;
 import com.crms.model.User;
 import com.crms.Session;
 
@@ -64,33 +63,6 @@ public class CrimeDAO {
         return null;
     }
 
-    public static void displayAllCrimeNumber(){
-        LinkedList list = getAllActiveCrimeRecord();
-        if (list != null){
-            for (int i = 0; i < list.size(); i++){
-                CrimeRecord cr = (CrimeRecord) list.get(i);
-                System.out.println((i + 1) + ". " + cr.getCrimeNumber());
-            }
-        }
-        else {
-            System.out.println("no cime record");
-        }
-    }
-
-    public static LinkedList<CrimeRecord> getAllActiveCrimeRecord() {
-        LinkedList<CrimeRecord> crimeRecords = new LinkedList();
-        String sql = "SELECT * FROM crime_records WHERE is_active = true";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                crimeRecords.add(mapCrime(rs));   // ← now all fields are set
-            }
-        } catch (SQLException e) {
-            System.err.println("Failed to get active crime records: " + e.getMessage());
-        }
-        return crimeRecords;
-    }
 
     public static CrimeRecord getByCrimeNumber(String crimeNumber) {
         String sql = "SELECT * FROM crime_records WHERE crime_number = ?";
@@ -152,20 +124,6 @@ public class CrimeDAO {
         return list;
     }
 
-    public static void displayAllCrimeRecords() {
-        LinkedList<CrimeRecord> list = getAllCrimeRecords();
-        if (list.isEmpty()) {
-            System.out.println("No crime records.");
-        } else {
-            int i = 1;
-            for (int idx = 0; idx < list.size(); idx++) {
-                CrimeRecord c =  list.get(idx);
-                System.out.println(i+1);
-                System.out.println(c);
-                i++;
-            }
-        }
-    }
 
     public static void displayCrimeRecordTable(LinkedList<CrimeRecord> crimes) {
         if (crimes == null || crimes.isEmpty()) {
@@ -260,25 +218,7 @@ public class CrimeDAO {
         return list;
     }
 
-    public static boolean isCrimeRecordAtStation(String crimeNumber, int stationId) {
-        if (crimeNumber == null || crimeNumber.trim().isEmpty()) {
-            return false;
-        }
-        String sql = "SELECT 1 FROM crime_records cr " +
-                "JOIN fir f ON cr.fir_number = f.fir_number " +
-                "WHERE cr.crime_number = ? AND f.station_id = ? AND cr.is_active = 1 AND f.is_active = 1";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, crimeNumber);
-            ps.setInt(2, stationId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next(); // returns true if any row found
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
+
 
     public static LinkedList<CrimeRecord> getCrimeRecordsByOfficerId(int officerId) {
         LinkedList<CrimeRecord> list = new LinkedList<>();
@@ -299,14 +239,6 @@ public class CrimeDAO {
         return list;
     }
 
-    /**
-     * Checks if a crime record with the given crime number is linked to a FIR
-     * that is assigned to the specified officer.
-     *
-     * @param crimeNumber the crime record number
-     * @param officerId the officer ID to check
-     * @return true if the crime record exists, is active, and its FIR is assigned to the officer
-     */
     public static boolean isCrimeRecordAssignedToOfficer(String crimeNumber, int officerId) {
         if (crimeNumber == null || crimeNumber.trim().isEmpty()) {
             return false;

@@ -8,9 +8,9 @@ public class Witness {
      String contact;
      String statement;
      boolean isActive;
+
     public Witness() {}
 
-    // Getters and setters
 
     public boolean isActive() {
         return isActive;

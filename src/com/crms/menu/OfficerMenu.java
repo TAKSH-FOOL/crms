@@ -1,6 +1,7 @@
 package com.crms.menu;
 
 import com.crms.Session;
+import com.crms.ds.InvestigationBST;
 import com.crms.model.*;
 import com.crms.dao.*;
 import com.crms.util.InputHelper;
@@ -48,10 +49,11 @@ public class OfficerMenu {
             System.out.println("12. Update Victim");
             System.out.println("13. Add Witness");
             System.out.println("14. Update Witness");
-            System.out.println("15. View Crime Records");
-            System.out.println("16. Add Crime Record");
-            System.out.println("17. Open Investigation");
-            System.out.println("18. Add Category");
+            System.out.println("15. Search Investigation");
+            System.out.println("16. View Crime Records");
+            System.out.println("17. Add Crime Record");
+            System.out.println("18. Open Investigation");
+            System.out.println("19. Add Category");
             System.out.println("0. Logout");
             System.out.print("Enter choice: ");
             choice = InputHelper.readInt(scanner);
@@ -100,15 +102,18 @@ public class OfficerMenu {
                     updateWitness();
                     break;
                 case 15:
-                    viewCrimeRecords();
+                    searchInvestigationByFir();
                     break;
                 case 16:
-                    addCrimeRecord();
+                    viewCrimeRecords();
                     break;
                 case 17:
-                    openInvestigation(officerId);
+                    addCrimeRecord();
                     break;
                 case 18:
+                    openInvestigation(officerId);
+                    break;
+                case 19:
                     addCategory();
                     break;
                 case 0:
@@ -311,6 +316,9 @@ public class OfficerMenu {
             } else {
                 System.out.println("Failed to link (possibly duplicate).");
             }
+        }
+        else {
+            System.out.println("no crime record available.");
         }
     }
 
@@ -750,6 +758,21 @@ public class OfficerMenu {
             for (Criminal c : results) {
                 System.out.println(c);
             }
+        }
+    }
+
+    // In your StaffMenu or wherever
+    public static void searchInvestigationByFir() {
+        String firNumber = InputHelper.getFirNumbersByOfficerId(scanner);// your existing helper
+        InvestigationBST bst = new InvestigationBST();
+        Investigation i = InvestigationDAO.getByFIRNumber(firNumber);
+        bst.insert(i);
+        Investigation inv = bst.searchByFirNumber(firNumber);
+        if (inv != null) {
+            System.out.println("Investigation found: " + inv);
+            // display details
+        } else {
+            System.out.println("No investigation found for FIR: " + firNumber);
         }
     }
 }

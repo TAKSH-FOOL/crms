@@ -16,8 +16,4 @@ public class Session {
     public static void clear() {
         currentUser = null;
     }
-
-    public static boolean isLoggedIn() {
-        return currentUser != null;
-    }
 }

@@ -175,10 +175,7 @@ public class CriminalDAO {
         System.out.println("+------+----------------------+----------------+--------+");
     }
 
-    /**
-     * Retrieves all active criminals linked to crimes that belong to a given station.
-     * A criminal may appear only once per station, even if linked to multiple crimes.
-     */
+
     public static LinkedList<Criminal> getCriminalsByStationId() {
         LinkedList<Criminal> list = new LinkedList<>();
         String sql = "SELECT DISTINCT c.* FROM criminals c " +
@@ -199,34 +196,6 @@ public class CriminalDAO {
         return list;
     }
 
-    /**
-     * Displays a formatted table of criminals for a given station.
-     */
-    public static void displayCriminals() {
-        LinkedList<Criminal> list = getCriminalsByStationId();
-        if (list == null || list.isEmpty()) {
-            System.out.println("No criminals found ");
-            return;
-        }
-
-        System.out.println("\n+------+----------------------+----------------+--------+");
-        System.out.printf("| %-4s | %-20s | %-14s | %-6s |\n",
-                "ID", "Full Name", "Wanted Status", "Active");
-        System.out.println("+------+----------------------+----------------+--------+");
-
-        for (Criminal c : list) {
-            String fullName = (c.getFirstName() + " " + c.getLastName()).trim();
-            if (fullName.isEmpty()) fullName = "N/A";
-            if (fullName.length() > 20) fullName = fullName.substring(0, 17) + "...";
-
-            String status = c.getWantedStatus() != null ? c.getWantedStatus() : "N/A";
-            String active = c.isActive() ? "Yes" : "No";
-
-            System.out.printf("| %-4d | %-20s | %-14s | %-6s |\n",
-                    c.getId(), fullName, status, active);
-        }
-        System.out.println("+------+----------------------+----------------+--------+");
-    }
 
     public static LinkedList<Criminal> searchCriminal(String firstName, String lastName, String wantedStatus) {
         // Build a fresh BST from the database (only active criminals)

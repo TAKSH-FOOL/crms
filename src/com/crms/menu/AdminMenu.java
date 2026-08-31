@@ -13,7 +13,6 @@ import java.util.*;
 
 public class AdminMenu {
     private static Scanner scanner = new Scanner(System.in);
-    static FIRDAO firDAO = new FIRDAO();
 
     public static void show() {
         if (Session.getCurrentUser() == null || !"ADMIN".equals(Session.getCurrentUser().getRole())) {
@@ -489,6 +488,7 @@ public class AdminMenu {
                 if (InputValidator.isValidDate(startInput)) {
                     break;
                 }
+
                 else  {
                     System.out.println("Invalid date.");
                 }
@@ -504,6 +504,10 @@ public class AdminMenu {
             endInput = scanner.nextLine().trim();
             if (!endInput.isEmpty()) {
                 endDate = LocalDate.parse(endInput, DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+                if (startDate.isAfter(LocalDate.now())){
+                    System.out.println("Invalid date.");
+                    continue;
+                }
                 if (InputValidator.isValidDate(endInput)) {
                     break;
                 }
@@ -698,7 +702,6 @@ public class AdminMenu {
             stationCodeMap.put(ps.getId(), ps.getStationCode());
         }
 
-        Iterator<User> iterator = users.iterator();
         System.out.println("\n+------+-----------------+--------------------------------+----------+----------------------+----------+--------+");
         System.out.printf("| %-4s | %-15s | %-30s | %-8s | %-20s | %-8s | %-6s |\n",
                 "ID", "Username", "Email", "Role", "Full Name", "Station", "Active");

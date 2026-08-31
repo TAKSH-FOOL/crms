@@ -178,39 +178,6 @@ public class EvidenceDAO {
         return list;
     }
 
-    public static void displayEvidenceByStationId(int stationId) {
-        LinkedList<Evidence> list = getEvidenceByStationId(stationId);
-        if (list == null || list.isEmpty()) {
-            System.out.println("No evidence found for station ID: " + stationId);
-            return;
-        }
-
-        System.out.println("\n+------+----------------------+----------------------+----------------------+-----------------+--------+");
-        System.out.printf("| %-4s | %-20s | %-20s | %-20s | %-15s | %-6s |\n",
-                "ID", "Evidence Number", "FIR Number", "Type", "Custodian", "Active");
-        System.out.println("+------+----------------------+----------------------+----------------------+-----------------+--------+");
-
-        for (Evidence e : list) {
-            String evNum = e.getEvidenceNumber() != null ? e.getEvidenceNumber() : "N/A";
-            String firNum = e.getFirNumber() != null ? e.getFirNumber() : "N/A";
-            String type = e.getType() != null ? e.getType() : "N/A";
-            String custodian = e.getCustodian() != null ? e.getCustodian() : "N/A";
-            String active = e.isActive() ? "Yes" : "No";
-
-            System.out.printf("| %-4d | %-20s | %-20s | %-20s | %-15s | %-6s |\n",
-                    e.getId(), evNum, firNum, type, custodian, active);
-        }
-        System.out.println("+------+----------------------+----------------------+----------------------+-----------------+--------+");
-    }
-
-    public static void displayAllActiveEvidence(){
-        LinkedList<Evidence> list = getAll();
-        for (int i=0; i<list.size(); i++) {
-            Evidence temp = list.get(i);
-            System.out.println(i+1 + " " +temp.getEvidenceNumber());
-        }
-    }
-
     private static Evidence mapEvidence(ResultSet rs) throws SQLException {
         Evidence e = new Evidence();
         e.setId(rs.getInt("id"));
@@ -272,20 +239,5 @@ public class EvidenceDAO {
         System.out.println("+------+----------------------+----------------------+----------------------+-----------------+--------+");
     }
 
-    public static LinkedList<Evidence> getByFIRNumber(String firNumber) {
-        LinkedList<Evidence> list = new LinkedList<>();
-        String sql = "SELECT * FROM evidence WHERE fir_number = ? AND is_active = 1";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, firNumber);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(mapEvidence(rs));
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return list;
-    }
+
 }

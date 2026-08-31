@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 
 public class InputValidator {
     public static boolean isValidPhone(String phone) {
@@ -27,12 +28,20 @@ public class InputValidator {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
+
+
     public static boolean isValidDate(String date) {
         if (date == null || date.trim().isEmpty()) {
             return false;
         }
+
+        // Use STRICT resolver to reject 31-02-2026, 30-02, etc.
+        DateTimeFormatter formatter = DateTimeFormatter
+                .ofPattern("dd-MM-uuuu")
+                .withResolverStyle(ResolverStyle.STRICT);
+
         try {
-            LocalDate parsed = LocalDate.parse(date.trim(), DATE_FORMATTER);
+            LocalDate parsed = LocalDate.parse(date.trim(), formatter);
             // Reject future dates
             return !parsed.isAfter(LocalDate.now());
         } catch (DateTimeParseException e) {
@@ -76,11 +85,6 @@ public class InputValidator {
         return crimeNumber.matches("^CN-[A-Za-z0-9]+-[0-9]+-[0-9]+$");
     }
 
-    /**
-     * Validates a date‑time string in format "yyyy-MM-dd HH:mm:ss".
-     * @param dateTime the string to validate
-     * @return true if the string is a valid date‑time in the correct format
-     */
     public static boolean isValidDateTime(String dateTime) {
         if (dateTime == null || dateTime.trim().isEmpty()) return false;
         try {

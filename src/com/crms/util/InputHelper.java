@@ -17,7 +17,7 @@ public class InputHelper {
         while (true) {
             String line = scanner.nextLine().trim();
             if (line.isEmpty()) {
-                continue;  // skip blank lines silently
+                continue;
             }
             try {
                 return Integer.parseInt(line);
@@ -28,19 +28,6 @@ public class InputHelper {
         }
     }
 
-    public static String updateFIRNumber(Scanner scanner) {
-        while (true) {
-            System.out.print("Enter New FIR Number (leave blank): ");
-            String line = scanner.nextLine().trim();
-            if (line.isEmpty() || line == "") {
-                return line;
-            } else if (InputValidator.isValidFIRNumber(line)) {
-                return line;
-            } else {
-                System.out.println("Please enter a valid FIR number.");
-            }
-        }
-    }
 
     public static String FIRNumber(Scanner scanner) {
         while (true) {
@@ -103,17 +90,6 @@ public class InputHelper {
         }
     }
 
-    public static String name(Scanner scanner) {
-        while (true) {
-            System.out.print("Enter name: ");
-            String line = scanner.nextLine().trim();
-            if (InputValidator.isValidName(line)) {
-                return line;
-            } else {
-                System.out.println("Please enter a valid name.");
-            }
-        }
-    }
 
     public static String harmDescription(Scanner scanner) {
         while (true) {
@@ -377,7 +353,6 @@ public class InputHelper {
         }
     }
 
-    // ---------- Incident Date and Time (uses InputValidator) ----------
     public static LocalDateTime incidentDateTime(Scanner scanner) {
         while (true) {
             System.out.print("Enter Incident Date and Time (dd-MM-yyyy HH:mm): ");
@@ -391,7 +366,6 @@ public class InputHelper {
     }
 
 
-    // In InputHelper.java
     public static String date(Scanner scanner) {
         while (true) {
             String line = scanner.nextLine().trim();
@@ -568,6 +542,21 @@ public class InputHelper {
         return "";
     }
 
+
+    public static String updatePassword(Scanner scanner) {
+        while (true) {
+            System.out.print("Enter new password (leave blank to keep, min 6 chars): ");
+            String line = scanner.nextLine().trim();
+            if (line.isEmpty()) {
+                return line;
+            } else if (line.length() >= 6) {
+                return line;
+            } else {
+                System.out.println("Password must be at least 6 characters.");
+            }
+        }
+    }
+
     public static String updateCrimeCategoryIndexName(Scanner scanner) {
         CrimeCategoryDAO.viewAllCrimeCategory();
         LinkedList<CrimeCategory> list = CrimeCategoryDAO.getAllCategory();
@@ -599,45 +588,8 @@ public class InputHelper {
     }
 
 
-    public static String inAssignedfirNumberIndexName(Scanner scanner) {
-        FIRDAO.displayAllInAssignedFIRNumber();
-        LinkedList<FIR> list = FIRDAO.getAllInAssignedFIR();
 
-        if (list.isEmpty()) {
-            System.out.println("No active FIRs found.");
-            return null;
-        }
 
-        while (true) {
-            System.out.print("Enter FIR Number (1-" + list.size() + "): ");
-            int idx = InputHelper.readInt(scanner) - 1; // convert to 0‑based index
-            if (idx >= 0 && idx < list.size()) {
-                FIR fir = list.get(idx);
-                return fir.getFirNumber();
-            } else {
-                System.out.println("Invalid selection. Please enter a number between 1 and " + list.size() + ".");
-            }
-        }
-    }
-
-    // ==================== USER FIELDS ====================
-
-    // ---------- Username ----------
-    public static String username(Scanner scanner) {
-        while (true) {
-            System.out.print("Enter username (3-20 characters, letters, numbers, underscore): ");
-            String line = scanner.nextLine().trim();
-            if (UserDAO.isUsernameAvailable(line)) {
-                if (line.matches("^[a-zA-Z0-9_]{3,20}$")) {
-                    return line;
-                } else {
-                    System.out.println("Invalid username. Must be 3-20 characters and contain only letters, numbers, or underscore.");
-                }
-            } else {
-                System.out.println("Username is already taken.");
-            }
-        }
-    }
 
     public static String updateUsername(Scanner scanner) {
         while (true) {
@@ -653,32 +605,91 @@ public class InputHelper {
         }
     }
 
+
+
+
+
+
+
     // ---------- Password ----------
+    public static String validatePassword(String password) {
+        if (password == null) return "Password cannot be null.";
+        int len = password.length();
+        if (len < 8 || len > 10) {
+            return "Password must be between 8 and 10 characters long.";
+        }
+
+        boolean hasUpper = false, hasDigit = false, hasSpecial = false;
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUpper = true;
+            else if (Character.isDigit(c)) hasDigit = true;
+            else if (!Character.isLetterOrDigit(c)) hasSpecial = true;
+            // lowercase letters are ignored – allowed but not required
+        }
+        if (!hasUpper) return "Password must contain at least one uppercase letter (A–Z).";
+        if (!hasDigit) return "Password must contain at least one digit (0–9).";
+        if (!hasSpecial) return "Password must contain at least one special character (e.g. !@#$%^&*).";
+        return null; // valid
+    }
+
     public static String password(Scanner scanner) {
         while (true) {
-            System.out.print("Enter password (minimum 6 characters): ");
-            String line = scanner.nextLine().trim();
-            if (line.length() >= 6) {
-                return line;
+            System.out.print("Enter password (8–10 chars, at least 1 uppercase, 1 digit, 1 special): ");
+            String password = scanner.nextLine().trim();
+            String error = validatePassword(password);
+            if (error == null) {
+                return password; // valid
             } else {
-                System.out.println("Password must be at least 6 characters.");
+                System.out.println("Invalid password: " + error);
             }
         }
     }
 
-    public static String updatePassword(Scanner scanner) {
+
+    public static String validateUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return "Username cannot be empty.";
+        }
+
+        String allowedSpecial = "._-@";
+        int letterCount = 0;
+
+        for (char c : username.toCharArray()) {
+            if (Character.isLetter(c)) {
+                letterCount++;
+            } else if (!Character.isDigit(c) && allowedSpecial.indexOf(c) == -1) {
+                return "Username can only contain letters, digits, and these special characters: . _ - @";
+            }
+        }
+
+        if (letterCount < 3) {
+            return "Username must contain at least 3 alphabetic characters (A–Z, a–z).";
+        }
+
+        return null; // valid
+    }
+
+    public static String username(Scanner scanner) {
         while (true) {
-            System.out.print("Enter new password (leave blank to keep, min 6 chars): ");
-            String line = scanner.nextLine().trim();
-            if (line.isEmpty()) {
-                return line;
-            } else if (line.length() >= 6) {
-                return line;
+            System.out.print("Enter username (letters, digits, . _ - @ allowed; at least 3 letters): ");
+            String input = scanner.nextLine().trim();
+            String error = validateUsername(input);
+            if (error == null) {
+                return input;
             } else {
-                System.out.println("Password must be at least 6 characters.");
+                System.out.println("Invalid username: " + error);
             }
         }
     }
+
+
+
+
+
+
+
+
+
 
     // ---------- Role ----------
     public static String role(Scanner scanner) {
@@ -765,30 +776,6 @@ public class InputHelper {
         }
     }
 
-    public static String userNameByIndex(Scanner scanner) {
-        LinkedList<User> users = UserDAO.getAll();
-        if (users.isEmpty()) {
-            System.out.println("No users found.");
-            return null;
-        }
-
-        System.out.println("\nSelect a user by index:");
-        for (int i = 0; i < users.size(); i++) {
-            User u = users.get(i);
-            System.out.println(i + 1 + " " + u.getFullName());
-        }
-
-        while (true) {
-            System.out.print("Enter user index (1-" + users.size() + "): ");
-            int idx = InputHelper.readInt(scanner) - 1; // convert to 0‑based
-            if (idx >= 0 && idx < users.size()) {
-                User u = users.get(idx);
-                return u.getUsername();
-            } else {
-                System.out.println("Invalid selection. Please enter a number between 1 and " + users.size() + ".");
-            }
-        }
-    }
 
     public static int updateStationId(Scanner scanner) {
         while (true) {

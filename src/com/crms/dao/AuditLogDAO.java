@@ -21,19 +21,6 @@ public class AuditLogDAO {
         return list;
     }
 
-    public static LinkedList getByUser(int userId) {
-        LinkedList list = new LinkedList();
-        String sql = "SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) list.add(mapLog(rs));
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return list;
-    }
 
     private static AuditLog mapLog(ResultSet rs) throws SQLException {
         AuditLog log = new AuditLog();

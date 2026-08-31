@@ -2,65 +2,51 @@ package com.crms.ds;
 
 import com.crms.model.Investigation;
 
-import java.util.LinkedList;
-
 public class InvestigationBST {
     private Node root;
 
     private static class Node {
-        Investigation inv;
+        Investigation investigation;
         Node left, right;
-
-        Node(Investigation inv) {
-            this.inv = inv;
-            left = right = null;
+        Node(Investigation investigation) {
+            this.investigation = investigation;
         }
     }
 
-    // ---------- Insert ----------
-    public void insert(Investigation inv) {
-        if (inv == null || inv.getFirNumber() == null) return;
-        root = insertRec(root, inv);
+
+    public void insert(Investigation investigation) {
+        root = insert(root, investigation);
     }
 
-    private Node insertRec(Node root, Investigation inv) {
-        if (root == null) {
-            return new Node(inv);
+    private Node insert(Node node, Investigation investigation) {
+        if (node == null) return new Node(investigation);
+        int cmp = investigation.getFirNumber().compareTo(node.investigation.getFirNumber());
+        if (cmp < 0) node.left = insert(node.left, investigation);
+        else if (cmp > 0) node.right = insert(node.right, investigation);
+        else {
+            // FIR already exists – update or ignore
         }
-        int cmp = inv.getFirNumber().compareToIgnoreCase(root.inv.getFirNumber());
-        if (cmp < 0) {
-            root.left = insertRec(root.left, inv);
-        } else if (cmp > 0) {
-            root.right = insertRec(root.right, inv);
-        } else {
-            // Duplicate FIR number – update the node (optional)
-            root.inv = inv;
-        }
-        return root;
+        return node;
     }
 
+    // Public search method – call this from outside
+    public  Investigation searchByFirNumber(String firNumber) {
+        return searchByFirNumber(root, firNumber);
+    }
 
-    private Investigation searchRec(Node root, String firNumber) {
-        if (root == null) return null;
-        int cmp = firNumber.compareToIgnoreCase(root.inv.getFirNumber());
+    // Private recursive helper
+    private  Investigation searchByFirNumber(Node node, String firNumber) {
+        if (node == null) {
+            return null; // not found
+        }
+
+        int cmp = firNumber.compareTo(node.investigation.getFirNumber());
         if (cmp == 0) {
-            return root.inv;
+            return node.investigation; // found
         } else if (cmp < 0) {
-            return searchRec(root.left, firNumber);
+            return searchByFirNumber(node.left, firNumber);
         } else {
-            return searchRec(root.right, firNumber);
+            return searchByFirNumber(node.right, firNumber);
         }
-    }
-
-    private void inorderRec(Node node, LinkedList list) {
-        if (node != null) {
-            inorderRec(node.left, list);
-            list.add(node.inv);
-            inorderRec(node.right, list);
-        }
-    }
-
-    public boolean isEmpty() {
-        return root == null;
     }
 }
